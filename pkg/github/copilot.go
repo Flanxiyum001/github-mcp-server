@@ -322,25 +322,23 @@ func AssignCopilotToIssue(t translations.TranslationHelperFunc) inventory.Server
 			}
 			actorIDs[len(getIssueQuery.Repository.Issue.Assignees.Nodes)] = copilotAssignee.ID
 
-			// Prepare agent assignment input
-			emptyString := githubv4.String("")
-			agentAssignment := &AgentAssignmentInput{
-				CustomAgent:        &emptyString,
-				CustomInstructions: &emptyString,
-				TargetRepositoryID: getIssueQuery.Repository.ID,
-			}
-
-			// Add base ref if provided
-			if params.BaseRef != "" {
-				baseRef := githubv4.String(params.BaseRef)
-				agentAssignment.BaseRef = &baseRef
-			}
-
-			// Add custom instructions if provided
-			if params.CustomInstructions != "" {
-				customInstructions := githubv4.String(params.CustomInstructions)
-				agentAssignment.CustomInstructions = &customInstructions
-			}
+			// Prepare agent assignment input. Only populate optional fields that are
+// actually set: pointers to empty strings still serialize as
+// "customAgent": "" / "customInstructions": "" on the wire, where the Copilot
+// UI omits them entirely (see #3283).
+agentAssignment := &AgentAssignmentInput{
+	TargetRepositoryID: getIssueQuery.Repository.ID,
+}
+// Add base ref if provided
+if params.BaseRef != "" {
+	baseRef := githubv4.String(params.BaseRef)
+	agentAssignment.BaseRef = &baseRef
+}
+// Add custom instructions if provided
+if params.CustomInstructions != "" {
+	customInstructions := githubv4.String(params.CustomInstructions)
+	agentAssignment.CustomInstructions = &customInstructions
+}
 
 			// Execute the updateIssue mutation with the GraphQL-Features header
 			// This header is required for the agent assignment API which is not GA yet
@@ -706,22 +704,19 @@ func AssignCopilotToIssueWithIntent(t translations.TranslationHelperFunc) invent
 				Assignees: assignees,
 			}
 			if !params.IsSuggestion {
-				emptyString := githubv4.String("")
-				agentAssignment := &AgentAssignmentInput{
-					CustomAgent:        &emptyString,
-					CustomInstructions: &emptyString,
-					TargetRepositoryID: getIssueQuery.Repository.ID,
-				}
-				if params.BaseRef != "" {
-					baseRef := githubv4.String(params.BaseRef)
-					agentAssignment.BaseRef = &baseRef
-				}
-				if params.CustomInstructions != "" {
-					customInstructions := githubv4.String(params.CustomInstructions)
-					agentAssignment.CustomInstructions = &customInstructions
-				}
-				input.AgentAssignment = agentAssignment
-			}
+	agentAssignment := &AgentAssignmentInput{
+		TargetRepositoryID: getIssueQuery.Repository.ID,
+	}
+	if params.BaseRef != "" {
+		baseRef := githubv4.String(params.BaseRef)
+		agentAssignment.BaseRef = &baseRef
+	}
+	if params.CustomInstructions != "" {
+		customInstructions := githubv4.String(params.CustomInstructions)
+		agentAssignment.CustomInstructions = &customInstructions
+	}
+	input.AgentAssignment = agentAssignment
+}
 
 			var updateIssueMutation struct {
 				UpdateIssue struct {
